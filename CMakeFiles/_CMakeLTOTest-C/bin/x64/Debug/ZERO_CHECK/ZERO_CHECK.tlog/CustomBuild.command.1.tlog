@@ -1,0 +1,10 @@
+^D:\ONEDRIVE\UFABC\3_QUADRIMESTRE_2024_14\MCCC007_23_COMPUTACAO_GRAFICA_A2_NOTURNO\ABCG\CMAKEFILES\_CMAKELTOTEST-C\BIN\CMAKEFILES\189001945E11D0FC4B5602D2390AC2A9\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SD:/OneDrive/UFABC/3_Quadrimestre_2024_14/MCCC007_23_COMPUTACAO_GRAFICA_A2_Noturno/abcg/CMakeFiles/_CMakeLTOTest-C/src -BD:/OneDrive/UFABC/3_Quadrimestre_2024_14/MCCC007_23_COMPUTACAO_GRAFICA_A2_Noturno/abcg/CMakeFiles/_CMakeLTOTest-C/bin --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file D:/OneDrive/UFABC/3_Quadrimestre_2024_14/MCCC007_23_COMPUTACAO_GRAFICA_A2_Noturno/abcg/CMakeFiles/_CMakeLTOTest-C/bin/lto-test.sln
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

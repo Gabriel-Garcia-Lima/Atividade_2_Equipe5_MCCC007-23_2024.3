@@ -1,0 +1,10 @@
+^D:\ONEDRIVE\UFABC\3_QUADRIMESTRE_2024_14\MCCC007_23_COMPUTACAO_GRAFICA_A2_NOTURNO\ABCG\CMAKEFILES\_CMAKELTOTEST-CXX\SRC\CMAKELISTS.TXT
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SD:/OneDrive/UFABC/3_Quadrimestre_2024_14/MCCC007_23_COMPUTACAO_GRAFICA_A2_Noturno/abcg/CMakeFiles/_CMakeLTOTest-CXX/src -BD:/OneDrive/UFABC/3_Quadrimestre_2024_14/MCCC007_23_COMPUTACAO_GRAFICA_A2_Noturno/abcg/CMakeFiles/_CMakeLTOTest-CXX/bin --check-stamp-file D:/OneDrive/UFABC/3_Quadrimestre_2024_14/MCCC007_23_COMPUTACAO_GRAFICA_A2_Noturno/abcg/CMakeFiles/_CMakeLTOTest-CXX/bin/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="16.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CustomBuild Include="D:\OneDrive\UFABC\3_Quadrimestre_2024_14\MCCC007_23_COMPUTACAO_GRAFICA_A2_Noturno\abcg\CMakeFiles\_CMakeLTOTest-CXX\bin\CMakeFiles\62d90edd819972be9308ad18a711c4d3\generate.stamp.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{52D32FC5-A034-3921-B778-B5B5C73FBA4C}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

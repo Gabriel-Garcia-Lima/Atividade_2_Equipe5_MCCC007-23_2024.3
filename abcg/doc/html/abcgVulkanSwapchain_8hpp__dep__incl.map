@@ -1,0 +1,10 @@
+<map id="/home/harlen/dev/abcg/abcg/abcgVulkanSwapchain.hpp" name="/home/harlen/dev/abcg/abcg/abcgVulkanSwapchain.hpp">
+<area shape="rect" id="node1" title="Header file of abcg::VulkanSwapchain." alt="" coords="440,5,673,47"/>
+<area shape="rect" id="node2" href="$abcgVulkanPipeline_8hpp.html" title="Header file of abcg::VulkanPipeline." alt="" coords="211,95,425,136"/>
+<area shape="rect" id="node6" href="$abcgVulkanSwapchain_8cpp.html" title="Definition of abcg::VulkanSwapchain." alt="" coords="677,184,909,225"/>
+<area shape="rect" id="node7" href="$abcgVulkanWindow_8hpp.html" title="Header file of abcg::VulkanWindow." alt="" coords="449,95,664,136"/>
+<area shape="rect" id="node3" href="$abcgVulkan_8hpp.html" title="Header file for Vulkan&#45;related functions and classes." alt="" coords="245,184,415,225"/>
+<area shape="rect" id="node5" href="$abcgVulkanPipeline_8cpp.html" title="Definition of abcg::VulkanPipeline." alt="" coords="5,184,220,225"/>
+<area shape="rect" id="node4" href="$abcgVulkanInstance_8cpp.html" title="Definition of abcg::VulkanInstance." alt="" coords="221,273,439,315"/>
+<area shape="rect" id="node8" href="$abcgVulkanWindow_8cpp.html" title="Definition of abcg::VulkanWindow members." alt="" coords="439,184,653,225"/>
+</map>

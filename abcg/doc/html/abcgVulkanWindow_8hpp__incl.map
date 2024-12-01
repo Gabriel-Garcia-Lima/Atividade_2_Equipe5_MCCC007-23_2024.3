@@ -1,0 +1,20 @@
+<map id="/home/harlen/dev/abcg/abcg/abcgVulkanWindow.hpp" name="/home/harlen/dev/abcg/abcg/abcgVulkanWindow.hpp">
+<area shape="rect" id="node1" title="Header file of abcg::VulkanWindow." alt="" coords="367,5,582,47"/>
+<area shape="rect" id="node2" href="$abcgVulkanDevice_8hpp.html" title="Header file of abcg::VulkanDevice." alt="" coords="283,244,453,271"/>
+<area shape="rect" id="node3" href="$abcgVulkanPhysicalDevice_8hpp.html" title="Header file of abcg::VulkanPhysicalDevice." alt="" coords="257,319,479,345"/>
+<area shape="rect" id="node8" href="$abcgVulkanInstance_8hpp.html" title="Header file of abcg::VulkanInstance." alt="" coords="91,393,269,420"/>
+<area shape="rect" id="node10" href="$abcgVulkanSwapchain_8hpp.html" title="Header file of abcg::VulkanSwapchain." alt="" coords="237,95,432,121"/>
+<area shape="rect" id="node14" href="$abcgWindow_8hpp.html" title="Header file of abcg::Window." alt="" coords="605,95,737,121"/>
+<area shape="rect" id="node9" title=" " alt="" coords="111,319,198,345"/>
+<area shape="rect" id="node4" title=" " alt="" coords="293,393,368,420"/>
+<area shape="rect" id="node5" href="$abcgVulkanExternal_8hpp.html" title="Header file for including Vulkan&#45;related dependencies." alt="" coords="203,468,381,495"/>
+<area shape="rect" id="node6" title=" " alt="" coords="198,543,261,569"/>
+<area shape="rect" id="node7" title=" " alt="" coords="285,543,425,569"/>
+<area shape="rect" id="node11" title=" " alt="" coords="283,169,386,196"/>
+<area shape="rect" id="node12" href="$abcgVulkanImage_8hpp.html" title="Header file of abcg::VulkanImage." alt="" coords="93,169,259,196"/>
+<area shape="rect" id="node13" title=" " alt="" coords="127,244,225,271"/>
+<area shape="rect" id="node15" title=" " alt="" coords="563,169,621,196"/>
+<area shape="rect" id="node16" href="$abcgExternal_8hpp.html" title="Header file for including third&#45;party dependencies." alt="" coords="646,169,781,196"/>
+<area shape="rect" id="node17" href="$abcgTimer_8hpp.html" title="Header file of abcg::Timer." alt="" coords="805,169,923,196"/>
+<area shape="rect" id="node18" title=" " alt="" coords="831,244,897,271"/>
+</map>
