@@ -10,7 +10,7 @@ Este é um jogo (Pinball) interativo 2D inspirado em pinball, onde a bola pode c
 
 ## Como Funciona
 
-XXX
+XXXX
 
 ## Funcionalidades
 
