@@ -21,6 +21,7 @@ private:
   GLuint m_VAO{};
   GLuint m_VBO{};
   GLuint m_EBO{};
+  GLuint m_EBOEdges{};
 
   glm::mat4 m_animationMatrix{1.0f};
   glm::mat4 m_viewMatrix;
@@ -32,6 +33,7 @@ private:
 
   std::vector<Vertex> m_vertices;
   std::vector<GLuint> m_indices;
+  std::vector<GLuint> m_edgeIndices;
 
   void createBuffers();
 

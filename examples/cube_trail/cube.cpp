@@ -113,6 +113,12 @@ void Cube::paint() {
 
   abcg::glDrawElements(GL_TRIANGLES, m_indices.size(), GL_UNSIGNED_INT, nullptr);
 
+  // Renderizar as bordas no modo wireframe
+  glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); // Ativar modo wireframe
+  abcg::glUniform4f(m_colorLoc, 0.0f, 0.0f, 0.0f, 1.0f); // Cor das arestas (preto)
+  abcg::glDrawElements(GL_TRIANGLES, m_indices.size(), GL_UNSIGNED_INT, nullptr);
+  glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); // Voltar ao modo preenchido
+
   abcg::glBindVertexArray(0);
 }
 
