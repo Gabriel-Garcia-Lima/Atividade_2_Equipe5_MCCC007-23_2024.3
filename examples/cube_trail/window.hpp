@@ -17,7 +17,7 @@ protected:
 private:
   glm::ivec2 m_viewportSize{600, 600};
   float m_scale{0.2f};
-  int m_N{3}; // Alterado para 3 para criar um plano 7x7
+  int m_N{3}; // Número de tiles do chão, 2N+1 x 2N+1
 
   GLint m_modelMatrixLoc{};
   glm::mat4 m_viewMatrix{1.0f};

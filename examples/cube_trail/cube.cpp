@@ -4,7 +4,7 @@
 #include <glm/gtx/fast_trigonometry.hpp>
 #include <unordered_map>
 
-// Explicit specialization of std::hash for Vertex
+// Especialização explícita de std::hash para Vertex
 template <> struct std::hash<Vertex> {
   size_t operator()(Vertex const &vertex) const noexcept {
     auto const h1{std::hash<glm::vec3>()(vertex.position)};
@@ -13,7 +13,7 @@ template <> struct std::hash<Vertex> {
 };
 
 void Cube::createBuffers() {
-  // Delete previous buffers
+  // Deleta buffers anteriores
   abcg::glDeleteBuffers(1, &m_EBO);
   abcg::glDeleteBuffers(1, &m_VBO);
 
@@ -55,17 +55,17 @@ void Cube::loadObj(std::string_view path) {
   m_vertices.clear();
   m_indices.clear();
 
-  // A key:value map with key=Vertex and value=index
+  // Um mapa key:value com key=Vertex e value=index
   std::unordered_map<Vertex, GLuint> hash{};
 
-  // Loop over shapes
+  // Loop sobre shapes
   for (auto const &shape : shapes) {
-    // Loop over indices
+    // Loop sobre indices
     for (auto const offset : iter::range(shape.mesh.indices.size())) {
-      // Access to vertex
+      // Acesso ao vertex
       auto const index{shape.mesh.indices.at(offset)};
 
-      // Vertex position
+      // Posição do vértice
       auto const startIndex{3 * index.vertex_index};
       glm::vec3 position{attrib.vertices.at(startIndex + 0),
                          attrib.vertices.at(startIndex + 1),
@@ -73,11 +73,11 @@ void Cube::loadObj(std::string_view path) {
 
       Vertex const vertex{.position = position};
 
-      // If hash doesn't contain this vertex
+      // Se hash não contém este vértice
       if (!hash.contains(vertex)) {
-        // Add this index (size of m_vertices)
+        // Adiciona este índice (tamanho de m_vertices)
         hash[vertex] = m_vertices.size();
-        // Add this vertex
+        // Adiciona este vértice
         m_vertices.push_back(vertex);
       }
 
@@ -89,12 +89,23 @@ void Cube::loadObj(std::string_view path) {
 }
 
 void Cube::paint() {
-
-  // Set uniform variables for the cube
+  // Configura as variáveis uniformes para o cubo
   m_positionMatrix = glm::translate(glm::mat4{1.0f}, m_position);
   m_modelMatrix = m_positionMatrix * m_animationMatrix;
-  // Ajuste para transformar o cubo em um prisma retangular
-  m_modelMatrix = glm::scale(m_modelMatrix, glm::vec3(m_scale, m_scale, m_scale));
+
+  // Ajusta a escala do prisma com base no estado
+  glm::vec3 scaleVec{m_scale, m_scale * 2.0f, m_scale};
+
+  if (m_state == State::LAYING_Z) {
+    scaleVec.z *= 2.0f;
+    scaleVec.y = m_scale;
+  } else if (m_state == State::LAYING_X) {
+    scaleVec.x *= 2.0f;
+    scaleVec.y = m_scale;
+  }
+
+  m_modelMatrix = glm::scale(m_modelMatrix, scaleVec);
+
   abcg::glUniformMatrix4fv(m_modelMatrixLoc, 1, GL_FALSE, &m_modelMatrix[0][0]);
   abcg::glUniform4f(m_colorLoc, 0.36f, 0.26f, 0.56f, 0.8f); // Cor
 
@@ -108,18 +119,18 @@ void Cube::paint() {
 void Cube::create(GLuint program, GLint modelMatrixLoc, GLint colorLoc,
                   glm::mat4 viewMatrix, float scale,
                   int N) {
-  // Release previous VAO
+  // Libera o VAO anterior
   abcg::glDeleteVertexArrays(1, &m_VAO);
 
-  // Create VAO
+  // Cria o VAO
   abcg::glGenVertexArrays(1, &m_VAO);
   abcg::glBindVertexArray(m_VAO);
 
-  // Bind EBO and VBO
+  // Vincula EBO e VBO
   abcg::glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_EBO);
   abcg::glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
 
-  // Bind vertex attributes
+  // Vincula os atributos de vértice
   auto const positionAttribute{
       abcg::glGetAttribLocation(program, "inPosition")};
   if (positionAttribute >= 0) {
@@ -128,7 +139,7 @@ void Cube::create(GLuint program, GLint modelMatrixLoc, GLint colorLoc,
                                 sizeof(Vertex), nullptr);
   }
 
-  // End of binding
+  // Fim da vinculação
   abcg::glBindBuffer(GL_ARRAY_BUFFER, 0);
   abcg::glBindVertexArray(0);
 
@@ -137,7 +148,6 @@ void Cube::create(GLuint program, GLint modelMatrixLoc, GLint colorLoc,
   m_colorLoc = colorLoc;
   m_scale = scale;
   m_maxPos = m_scale * N;
-  m_position = glm::vec3(0.0f, m_scale / 2.0f, 0.0f);
 }
 
 void Cube::update(float deltaTime) { move(deltaTime); }
@@ -149,8 +159,19 @@ void Cube::destroy() const {
 }
 
 void Cube::move(float deltaTime) {
-  if (!m_isMoving)
+  if (!m_isMoving && !m_isFalling)
     return;
+
+  if (m_isFalling) {
+    // Animação de queda
+    m_fallTime += deltaTime;
+    m_position.y -= m_fallSpeed * deltaTime;
+    if (m_fallTime > m_fallDuration) {
+      resetGame();
+    }
+    return;
+  }
+
   float max_angle = 90.0f;
 
   if (m_angle < max_angle) {
@@ -158,28 +179,28 @@ void Cube::move(float deltaTime) {
     if (m_angle > max_angle)
       m_angle = max_angle;
 
-    // Ajuste na animação para considerar o novo tamanho do prisma
-    float rotationRadius = m_scale * 1.0f; // Raio de rotação ajustado
     glm::vec3 rotationAxis{0.0f, 0.0f, 0.0f};
     glm::vec3 pivotPoint{0.0f, 0.0f, 0.0f};
 
-    switch (m_orientation) {
-    case Orientation::UP:
+    float offset = m_scale / 2.0f;
+
+    // Ajustar o eixo de rotação e o ponto de pivô com base no estado e orientação
+    if (m_state == State::STANDING) {
+      if (m_orientation == Orientation::UP || m_orientation == Orientation::DOWN) {
+        rotationAxis = glm::vec3(1.0f, 0.0f, 0.0f);
+        pivotPoint = m_position + glm::vec3(0.0f, -offset, m_orientation == Orientation::UP ? -offset : offset);
+      } else {
+        rotationAxis = glm::vec3(0.0f, 0.0f, 1.0f);
+        pivotPoint = m_position + glm::vec3(m_orientation == Orientation::LEFT ? -offset : offset, -offset, 0.0f);
+      }
+    } else if (m_state == State::LAYING_Z) {
       rotationAxis = glm::vec3(1.0f, 0.0f, 0.0f);
-      pivotPoint = glm::vec3(0.0f, -rotationRadius, -rotationRadius);
-      break;
-    case Orientation::DOWN:
-      rotationAxis = glm::vec3(1.0f, 0.0f, 0.0f);
-      pivotPoint = glm::vec3(0.0f, -rotationRadius, rotationRadius);
-      break;
-    case Orientation::LEFT:
+      offset = m_scale;
+      pivotPoint = m_position + glm::vec3(0.0f, -offset, m_orientation == Orientation::UP ? -offset : offset);
+    } else if (m_state == State::LAYING_X) {
       rotationAxis = glm::vec3(0.0f, 0.0f, 1.0f);
-      pivotPoint = glm::vec3(-rotationRadius, -rotationRadius, 0.0f);
-      break;
-    case Orientation::RIGHT:
-      rotationAxis = glm::vec3(0.0f, 0.0f, 1.0f);
-      pivotPoint = glm::vec3(rotationRadius, -rotationRadius, 0.0f);
-      break;
+      offset = m_scale;
+      pivotPoint = m_position + glm::vec3(m_orientation == Orientation::LEFT ? -offset : offset, -offset, 0.0f);
     }
 
     m_animationMatrix = glm::translate(glm::mat4(1.0f), pivotPoint);
@@ -200,64 +221,173 @@ void Cube::resetAnimation() {
 }
 
 void Cube::translate() {
-  float moveDistance = m_scale; // Considera o tamanho do prisma
+  float moveDistance = m_scale;
 
-  switch (m_orientation) {
-  case Orientation::UP:
-    m_position.z -= moveDistance;
+  switch (m_state) {
+  case State::STANDING:
+    if (m_orientation == Orientation::UP) {
+      m_position.z -= moveDistance;
+    } else if (m_orientation == Orientation::DOWN) {
+      m_position.z += moveDistance;
+    } else if (m_orientation == Orientation::LEFT) {
+      m_position.x -= moveDistance;
+    } else if (m_orientation == Orientation::RIGHT) {
+      m_position.x += moveDistance;
+    }
     break;
-  case Orientation::DOWN:
-    m_position.z += moveDistance;
+
+  case State::LAYING_Z:
+    if (m_orientation == Orientation::UP || m_orientation == Orientation::DOWN) {
+      m_position.z += (m_orientation == Orientation::UP ? -2.0f : 2.0f) * moveDistance;
+    } else {
+      m_position.x += (m_orientation == Orientation::LEFT ? -1.0f : 1.0f) * moveDistance;
+    }
     break;
-  case Orientation::LEFT:
-    m_position.x -= moveDistance;
+
+  case State::LAYING_X:
+    if (m_orientation == Orientation::LEFT || m_orientation == Orientation::RIGHT) {
+      m_position.x += (m_orientation == Orientation::LEFT ? -2.0f : 2.0f) * moveDistance;
+    } else {
+      m_position.z += (m_orientation == Orientation::UP ? -1.0f : 1.0f) * moveDistance;
+    }
     break;
-  case Orientation::RIGHT:
-    m_position.x += moveDistance;
-    break;
+  }
+
+  // Atualizar o estado do prisma após a translação
+  if (m_state == State::STANDING) {
+    if (m_orientation == Orientation::UP || m_orientation == Orientation::DOWN) {
+      m_state = State::LAYING_Z;
+    } else {
+      m_state = State::LAYING_X;
+    }
+  } else if (m_state == State::LAYING_Z || m_state == State::LAYING_X) {
+    m_state = State::STANDING;
   }
 }
 
 void Cube::moveUp() {
-  if (m_isMoving)
+  if (m_isMoving || m_isFalling)
     return;
 
-  if (m_position.z - (m_scale * 2.0f) < -m_maxPos)
+  bool willFall = false;
+
+  switch (m_state) {
+  case State::STANDING:
+    willFall = (m_position.z - (m_scale * 1.0f) < -m_maxPos);
+    break;
+  case State::LAYING_Z:
+    willFall = (m_position.z - (m_scale * 2.0f) < -m_maxPos);
+    break;
+  case State::LAYING_X:
+    willFall = (m_position.z - (m_scale * 1.0f) < -m_maxPos);
+    break;
+  }
+
+  if (willFall) {
     m_border = true;
+    m_isFalling = true;
+    m_fallTime = 0.0f;
+    return;
+  }
 
   m_isMoving = true;
   m_orientation = Orientation::UP;
 }
 
 void Cube::moveDown() {
-  if (m_isMoving)
+  if (m_isMoving || m_isFalling)
     return;
 
-  if (m_position.z + (m_scale * 2.0f) > m_maxPos)
+  bool willFall = false;
+
+  switch (m_state) {
+  case State::STANDING:
+    willFall = (m_position.z + (m_scale * 1.0f) > m_maxPos);
+    break;
+  case State::LAYING_Z:
+    willFall = (m_position.z + (m_scale * 2.0f) > m_maxPos);
+    break;
+  case State::LAYING_X:
+    willFall = (m_position.z + (m_scale * 1.0f) > m_maxPos);
+    break;
+  }
+
+  if (willFall) {
     m_border = true;
+    m_isFalling = true;
+    m_fallTime = 0.0f;
+    return;
+  }
 
   m_isMoving = true;
   m_orientation = Orientation::DOWN;
 }
 
 void Cube::moveLeft() {
-  if (m_isMoving)
+  if (m_isMoving || m_isFalling)
     return;
 
-  if (m_position.x - (m_scale * 2.0f) < -m_maxPos)
+  bool willFall = false;
+
+  switch (m_state) {
+  case State::STANDING:
+    willFall = (m_position.x - (m_scale * 1.0f) < -m_maxPos);
+    break;
+  case State::LAYING_X:
+    willFall = (m_position.x - (m_scale * 2.0f) < -m_maxPos);
+    break;
+  case State::LAYING_Z:
+    willFall = (m_position.x - (m_scale * 1.0f) < -m_maxPos);
+    break;
+  }
+
+  if (willFall) {
     m_border = true;
+    m_isFalling = true;
+    m_fallTime = 0.0f;
+    return;
+  }
 
   m_isMoving = true;
   m_orientation = Orientation::LEFT;
 }
 
 void Cube::moveRight() {
-  if (m_isMoving)
+  if (m_isMoving || m_isFalling)
     return;
 
-  if (m_position.x + (m_scale * 2.0f) > m_maxPos)
+  bool willFall = false;
+
+  switch (m_state) {
+  case State::STANDING:
+    willFall = (m_position.x + (m_scale * 1.0f) > m_maxPos);
+    break;
+  case State::LAYING_X:
+    willFall = (m_position.x + (m_scale * 2.0f) > m_maxPos);
+    break;
+  case State::LAYING_Z:
+    willFall = (m_position.x + (m_scale * 1.0f) > m_maxPos);
+    break;
+  }
+
+  if (willFall) {
     m_border = true;
+    m_isFalling = true;
+    m_fallTime = 0.0f;
+    return;
+  }
 
   m_isMoving = true;
   m_orientation = Orientation::RIGHT;
+}
+
+void Cube::resetGame() {
+  m_position = glm::vec3(0.0f, 0.0f, 0.0f);
+  m_state = State::STANDING;
+  m_isMoving = false;
+  m_isFalling = false;
+  m_animationMatrix = glm::mat4{1.0f};
+  m_angle = 0.0f;
+  m_border = false;
+  m_fallTime = 0.0f;
 }

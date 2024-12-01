@@ -9,7 +9,7 @@ int main(int argc, char **argv) {
     window.setWindowSettings({
         .width = 600,
         .height = 600,
-        .title = "Cube",
+        .title = "Bloxorz Clone",
     });
 
     app.run(window);

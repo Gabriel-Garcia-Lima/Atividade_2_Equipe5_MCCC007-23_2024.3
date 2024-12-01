@@ -15,12 +15,12 @@ public:
   void moveRight();
   void moveUp();
   void moveDown();
+  void resetGame();
 
 private:
   GLuint m_VAO{};
   GLuint m_VBO{};
   GLuint m_EBO{};
-
 
   glm::mat4 m_animationMatrix{1.0f};
   glm::mat4 m_viewMatrix;
@@ -35,25 +35,28 @@ private:
 
   void createBuffers();
 
-  enum class Orientation{ DOWN, RIGHT, UP, LEFT}; // 0,1,2,3
-  enum class PlaneFace{ C_UPPER, C_FRONT, C_BOTTOM, C_REAR, C_RIGHT, C_LEFT}; // 0,1,2,3,4,5
+  enum class Orientation { DOWN, RIGHT, UP, LEFT };
+  enum class State { STANDING, LAYING_X, LAYING_Z };
 
   glm::vec3 m_position{};
   float m_scale{1.0f};
   float m_angle{};
   Orientation m_orientation{Orientation::DOWN};
-  PlaneFace m_planeface{PlaneFace::C_UPPER};
+  State m_state{State::STANDING};
 
   bool m_isMoving{false};
   float m_maxPos{1.0f};
-  float m_angleVelocity{360.0f}; //animation to move takes 1/4 of a second
+  float m_angleVelocity{360.0f};
   bool m_border{false};
+
+  bool m_isFalling{false};
+  float m_fallTime{0.0f};
+  float m_fallDuration{1.0f};
+  float m_fallSpeed{2.0f};
 
   void move(float deltaTime);
   void translate();
   void resetAnimation();
-  void increaseAngle(float inc);
-
 };
 
 #endif
