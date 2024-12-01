@@ -169,7 +169,7 @@ void Cube::move(float deltaTime) {
     return;
 
   if (m_isFalling) {
-    // Animação de queda
+    // Falling animation remains the same
     m_fallTime += deltaTime;
     m_position.y -= m_fallSpeed * deltaTime;
     if (m_fallTime > m_fallDuration) {
@@ -190,25 +190,54 @@ void Cube::move(float deltaTime) {
 
     float offset = m_scale / 2.0f;
 
-    // Ajustar o eixo de rotação e o ponto de pivô com base no estado e orientação
-    if (m_state == State::STANDING) {
-      if (m_orientation == Orientation::UP || m_orientation == Orientation::DOWN) {
-        rotationAxis = glm::vec3(1.0f, 0.0f, 0.0f);
-        pivotPoint = m_position + glm::vec3(0.0f, -offset, m_orientation == Orientation::UP ? -offset : offset);
-      } else {
-        rotationAxis = glm::vec3(0.0f, 0.0f, 1.0f);
-        pivotPoint = m_position + glm::vec3(m_orientation == Orientation::LEFT ? -offset : offset, -offset, 0.0f);
-      }
-    } else if (m_state == State::LAYING_Z) {
-      rotationAxis = glm::vec3(1.0f, 0.0f, 0.0f);
-      offset = m_scale;
-      pivotPoint = m_position + glm::vec3(0.0f, -offset, m_orientation == Orientation::UP ? -offset : offset);
-    } else if (m_state == State::LAYING_X) {
-      rotationAxis = glm::vec3(0.0f, 0.0f, 1.0f);
-      offset = m_scale;
-      pivotPoint = m_position + glm::vec3(m_orientation == Orientation::LEFT ? -offset : offset, -offset, 0.0f);
+    switch (m_state) {
+      case State::STANDING:
+        switch (m_orientation) {
+          case Orientation::UP:
+            rotationAxis = glm::vec3(1.0f, 0.0f, 0.0f);
+            pivotPoint = m_position + glm::vec3(0.0f, -offset, -offset);
+            break;
+          case Orientation::DOWN:
+            rotationAxis = glm::vec3(1.0f, 0.0f, 0.0f);
+            pivotPoint = m_position + glm::vec3(0.0f, -offset, offset);
+            break;
+          case Orientation::LEFT:
+            rotationAxis = glm::vec3(0.0f, 0.0f, 1.0f);
+            pivotPoint = m_position + glm::vec3(-offset, -offset, 0.0f);
+            break;
+          case Orientation::RIGHT:
+            rotationAxis = glm::vec3(0.0f, 0.0f, 1.0f);
+            pivotPoint = m_position + glm::vec3(offset, -offset, 0.0f);
+            break;
+        }
+        break;
+
+      case State::LAYING_Z:
+        if (m_orientation == Orientation::UP || m_orientation == Orientation::DOWN) {
+          rotationAxis = glm::vec3(1.0f, 0.0f, 0.0f);
+          float pivotOffsetZ = (m_orientation == Orientation::UP ? -m_scale : m_scale);
+          pivotPoint = m_position + glm::vec3(0.0f, -offset, pivotOffsetZ);
+        } else {
+          // Moving left/right while LAYING_Z
+          rotationAxis = glm::vec3(0.0f, 0.0f, 1.0f);
+          pivotPoint = m_position + glm::vec3((m_orientation == Orientation::LEFT ? -offset : offset), -offset, 0.0f);
+        }
+        break;
+
+      case State::LAYING_X:
+        if (m_orientation == Orientation::LEFT || m_orientation == Orientation::RIGHT) {
+          rotationAxis = glm::vec3(0.0f, 0.0f, 1.0f);
+          float pivotOffsetX = (m_orientation == Orientation::LEFT ? -m_scale : m_scale);
+          pivotPoint = m_position + glm::vec3(pivotOffsetX, -offset, 0.0f);
+        } else {
+          // Moving up/down while LAYING_X
+          rotationAxis = glm::vec3(1.0f, 0.0f, 0.0f);
+          pivotPoint = m_position + glm::vec3(0.0f, -offset, (m_orientation == Orientation::UP ? -offset : offset));
+        }
+        break;
     }
 
+    // Apply rotation transformations
     m_animationMatrix = glm::translate(glm::mat4(1.0f), pivotPoint);
     m_animationMatrix = glm::rotate(m_animationMatrix, glm::radians(m_angle), rotationAxis);
     m_animationMatrix = glm::translate(m_animationMatrix, -pivotPoint);
@@ -230,46 +259,55 @@ void Cube::translate() {
   float moveDistance = m_scale;
 
   switch (m_state) {
-  case State::STANDING:
-    if (m_orientation == Orientation::UP) {
-      m_position.z -= moveDistance;
-    } else if (m_orientation == Orientation::DOWN) {
-      m_position.z += moveDistance;
-    } else if (m_orientation == Orientation::LEFT) {
-      m_position.x -= moveDistance;
-    } else if (m_orientation == Orientation::RIGHT) {
-      m_position.x += moveDistance;
-    }
-    break;
+    case State::STANDING:
+      if (m_orientation == Orientation::UP) {
+        m_position.z -= moveDistance;
+        m_position.z -= moveDistance / 2.0f; // Shift for LAYING state
+        m_state = State::LAYING_Z;
+      } else if (m_orientation == Orientation::DOWN) {
+        m_position.z += moveDistance;
+        m_position.z += moveDistance / 2.0f;
+        m_state = State::LAYING_Z;
+      } else if (m_orientation == Orientation::LEFT) {
+        m_position.x -= moveDistance;
+        m_position.x -= moveDistance / 2.0f;
+        m_state = State::LAYING_X;
+      } else if (m_orientation == Orientation::RIGHT) {
+        m_position.x += moveDistance;
+        m_position.x += moveDistance / 2.0f;
+        m_state = State::LAYING_X;
+      }
+      break;
 
-  case State::LAYING_Z:
-    if (m_orientation == Orientation::UP || m_orientation == Orientation::DOWN) {
-      m_position.z += (m_orientation == Orientation::UP ? -2.0f : 2.0f) * moveDistance;
-    } else {
-      m_position.x += (m_orientation == Orientation::LEFT ? -1.0f : 1.0f) * moveDistance;
-    }
-    break;
+    case State::LAYING_Z:
+      if (m_orientation == Orientation::UP || m_orientation == Orientation::DOWN) {
+        // Move two tiles
+        m_position.z += (m_orientation == Orientation::UP ? -2.0f * moveDistance : 2.0f * moveDistance);
+        // Adjust position back to center
+        m_position.z += (m_orientation == Orientation::UP ? moveDistance : -moveDistance) / 2.0f;
+        m_state = State::STANDING;
+      } else {
+        // Move one tile in X direction
+        m_position.x += (m_orientation == Orientation::LEFT ? -moveDistance : moveDistance);
+      }
+      break;
 
-  case State::LAYING_X:
-    if (m_orientation == Orientation::LEFT || m_orientation == Orientation::RIGHT) {
-      m_position.x += (m_orientation == Orientation::LEFT ? -2.0f : 2.0f) * moveDistance;
-    } else {
-      m_position.z += (m_orientation == Orientation::UP ? -1.0f : 1.0f) * moveDistance;
-    }
-    break;
-  }
-
-  // Atualizar o estado do prisma após a translação
-  if (m_state == State::STANDING) {
-    if (m_orientation == Orientation::UP || m_orientation == Orientation::DOWN) {
-      m_state = State::LAYING_Z;
-    } else {
-      m_state = State::LAYING_X;
-    }
-  } else if (m_state == State::LAYING_Z || m_state == State::LAYING_X) {
-    m_state = State::STANDING;
+    case State::LAYING_X:
+      if (m_orientation == Orientation::LEFT || m_orientation == Orientation::RIGHT) {
+        // Move two tiles
+        m_position.x += (m_orientation == Orientation::LEFT ? -2.0f * moveDistance : 2.0f * moveDistance);
+        // Adjust position back to center
+        m_position.x += (m_orientation == Orientation::LEFT ? moveDistance : -moveDistance) / 2.0f;
+        m_state = State::STANDING;
+      } else {
+        // Move one tile in Z direction
+        m_position.z += (m_orientation == Orientation::UP ? -moveDistance : moveDistance);
+      }
+      break;
   }
 }
+
+
 
 void Cube::moveUp() {
   if (m_isMoving || m_isFalling)
@@ -282,7 +320,7 @@ void Cube::moveUp() {
     willFall = (m_position.z - (m_scale * 1.0f) < -m_maxPos);
     break;
   case State::LAYING_Z:
-    willFall = (m_position.z - (m_scale * 2.0f) < -m_maxPos);
+    willFall = (m_position.z - (m_scale * 1.0f) < -m_maxPos);
     break;
   case State::LAYING_X:
     willFall = (m_position.z - (m_scale * 1.0f) < -m_maxPos);
@@ -311,7 +349,7 @@ void Cube::moveDown() {
     willFall = (m_position.z + (m_scale * 1.0f) > m_maxPos);
     break;
   case State::LAYING_Z:
-    willFall = (m_position.z + (m_scale * 2.0f) > m_maxPos);
+    willFall = (m_position.z + (m_scale * 1.0f) > m_maxPos);
     break;
   case State::LAYING_X:
     willFall = (m_position.z + (m_scale * 1.0f) > m_maxPos);
@@ -340,7 +378,7 @@ void Cube::moveLeft() {
     willFall = (m_position.x - (m_scale * 1.0f) < -m_maxPos);
     break;
   case State::LAYING_X:
-    willFall = (m_position.x - (m_scale * 2.0f) < -m_maxPos);
+    willFall = (m_position.x - (m_scale * 1.0f) < -m_maxPos);
     break;
   case State::LAYING_Z:
     willFall = (m_position.x - (m_scale * 1.0f) < -m_maxPos);
@@ -369,7 +407,7 @@ void Cube::moveRight() {
     willFall = (m_position.x + (m_scale * 1.0f) > m_maxPos);
     break;
   case State::LAYING_X:
-    willFall = (m_position.x + (m_scale * 2.0f) > m_maxPos);
+    willFall = (m_position.x + (m_scale * 1.0f) > m_maxPos);
     break;
   case State::LAYING_Z:
     willFall = (m_position.x + (m_scale * 1.0f) > m_maxPos);
