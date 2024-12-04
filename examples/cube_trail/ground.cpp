@@ -33,6 +33,14 @@ void Ground::create(GLuint program, GLint modelMatrixLoc, GLint colorLoc, float 
   abcg::glBindBuffer(GL_ARRAY_BUFFER, 0);
   abcg::glBindVertexArray(0);
 
+  // Initialize the grid with all tiles present
+  m_N = N;
+  m_scale = scale;
+  m_grid.resize(2 * m_N + 1, std::vector<bool>(2 * m_N + 1, true));
+
+  // For example, set the hole at (x=0, z=3)
+  setHole(1, 2);
+
   // Carrega a localização das variáveis uniformes do shader
   m_modelMatrixLoc = modelMatrixLoc;
   m_colorLoc = colorLoc;
@@ -45,6 +53,9 @@ void Ground::paint() {
 
   for (auto const z : iter::range(-m_N, m_N + 1)) {
     for (auto const x : iter::range(-m_N, m_N + 1)) {
+      // Skip drawing if the tile is a hole
+      if (!isTile(x, z)) continue;
+
       glm::mat4 model{1.0f};
 
       model = glm::translate(model, glm::vec3(x * m_scale, 0.0f, z * m_scale));
@@ -52,7 +63,7 @@ void Ground::paint() {
 
       abcg::glUniformMatrix4fv(m_modelMatrixLoc, 1, GL_FALSE, &model[0][0]);
 
-      // Define a cor (padrão xadrez)
+      // Define color (checkerboard pattern)
       auto const gray{(z + x) % 2 == 0 ? 0.5f : 1.0f};
       abcg::glUniform4f(m_colorLoc, gray, gray, gray, 1.0f);
 
@@ -63,7 +74,34 @@ void Ground::paint() {
   abcg::glBindVertexArray(0);
 }
 
+
 void Ground::destroy() {
   abcg::glDeleteBuffers(1, &m_VBO);
   abcg::glDeleteVertexArrays(1, &m_VAO);
+}
+
+void Ground::setHole(int x, int z) {
+  // Convert grid coordinates to vector indices
+  int gridX = x + m_N;
+  int gridZ = z + m_N;
+
+  if (gridX >= 0 && gridX < 2 * m_N + 1 && gridZ >= 0 && gridZ < 2 * m_N + 1) {
+    m_grid[gridX][gridZ] = false; // Set tile as hole
+    m_holeX = x;
+    m_holeZ = z;
+  }
+}
+
+bool Ground::isTile(int x, int z) const {
+  int gridX = x + m_N;
+  int gridZ = z + m_N;
+  if (gridX >= 0 && gridX < 2 * m_N + 1 && gridZ >= 0 && gridZ < 2 * m_N + 1) {
+    return m_grid[gridX][gridZ];
+  }
+  return false; // Outside grid bounds
+}
+
+void Ground::getHolePosition(int& x, int& z) const {
+  x = m_holeX;
+  z = m_holeZ;
 }
