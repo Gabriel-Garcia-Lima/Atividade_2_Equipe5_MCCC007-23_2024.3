@@ -1,5 +1,7 @@
 #include "cube.hpp"
+#include "ground.hpp"
 #include <iostream>
+#include <cmath>
 
 #include <glm/gtx/fast_trigonometry.hpp>
 #include <unordered_map>
@@ -158,15 +160,31 @@ void Cube::create(GLuint program, GLint modelMatrixLoc, GLint colorLoc,
 
 void Cube::update(float deltaTime) { move(deltaTime); }
 
+void Cube::setGround(Ground* ground) {
+    m_ground = ground;
+}
+
 void Cube::destroy() const {
   abcg::glDeleteBuffers(1, &m_EBO);
   abcg::glDeleteBuffers(1, &m_VBO);
   abcg::glDeleteVertexArrays(1, &m_VAO);
 }
 
+// Novo método para gerar posição aleatória
+glm::vec3 Cube::generateRandomPosition() {
+  int randomX = m_xDistribution(m_randomEngine);
+  int randomZ = m_zDistribution(m_randomEngine);
+
+  // Converte coordenadas do grid para coordenadas do mundo
+  float worldX = randomX * m_scale * 2.0f - m_maxPos;
+  float worldZ = randomZ * m_scale * 2.0f - m_maxPos;
+
+  return glm::vec3(worldX, 0.0f, worldZ);
+}
+
 void Cube::move(float deltaTime) {
   if (!m_isMoving && !m_isFalling)
-    return;
+      return;
 
   if (m_isFalling) {
     // Falling animation remains the same
@@ -262,7 +280,7 @@ void Cube::translate() {
     case State::STANDING:
       if (m_orientation == Orientation::UP) {
         m_position.z -= moveDistance;
-        m_position.z -= moveDistance / 2.0f; // Shift for LAYING state
+        m_position.z -= moveDistance / 2.0f; // Shift para estado LAYING
         m_state = State::LAYING_Z;
       } else if (m_orientation == Orientation::DOWN) {
         m_position.z += moveDistance;
@@ -281,32 +299,48 @@ void Cube::translate() {
 
     case State::LAYING_Z:
       if (m_orientation == Orientation::UP || m_orientation == Orientation::DOWN) {
-        // Move two tiles
+        // Move duas casas
         m_position.z += (m_orientation == Orientation::UP ? -2.0f * moveDistance : 2.0f * moveDistance);
-        // Adjust position back to center
+        // Ajusta a posição para o centro
         m_position.z += (m_orientation == Orientation::UP ? moveDistance : -moveDistance) / 2.0f;
         m_state = State::STANDING;
       } else {
-        // Move one tile in X direction
+        // Move uma casa na direção X
         m_position.x += (m_orientation == Orientation::LEFT ? -moveDistance : moveDistance);
       }
       break;
 
     case State::LAYING_X:
       if (m_orientation == Orientation::LEFT || m_orientation == Orientation::RIGHT) {
-        // Move two tiles
+        // Move duas casas
         m_position.x += (m_orientation == Orientation::LEFT ? -2.0f * moveDistance : 2.0f * moveDistance);
-        // Adjust position back to center
+        // Ajusta a posição para o centro
         m_position.x += (m_orientation == Orientation::LEFT ? moveDistance : -moveDistance) / 2.0f;
         m_state = State::STANDING;
       } else {
-        // Move one tile in Z direction
+        // Move uma casa na direção Z
         m_position.z += (m_orientation == Orientation::UP ? -moveDistance : moveDistance);
       }
       break;
   }
-}
 
+  // Após atualizar a posição, verifique se o Cube está sobre o buraco **e está em pé**
+  if (m_ground != nullptr) {
+    // Converte as coordenadas do mundo para coordenadas do grid
+    int gridX = static_cast<int>(round(m_position.x / m_scale));
+    int gridZ = static_cast<int>(round(m_position.z / m_scale));
+
+    int holeX, holeZ;
+    m_ground->getHolePosition(holeX, holeZ);
+
+    // **Adicione a verificação do estado STANDING**
+    if (m_state == State::STANDING && gridX == holeX && gridZ == holeZ) {
+      // O Cube está sobre o buraco **e está em pé**; inicia a queda
+      m_isFalling = true;
+      m_fallTime = 0.0f;
+    }
+  }
+}
 
 
 void Cube::moveUp() {
@@ -426,7 +460,28 @@ void Cube::moveRight() {
 }
 
 void Cube::resetGame() {
-  m_position = glm::vec3(0.0f, 0.0f, 0.0f);
+  bool positionValid = false;
+  glm::vec3 newPosition;
+
+  while (!positionValid) {
+    newPosition = generateRandomPosition();
+
+    // Converte as coordenadas do mundo para coordenadas do grid
+    int gridX = static_cast<int>(round(newPosition.x / m_scale));
+    int gridZ = static_cast<int>(round(newPosition.z / m_scale));
+
+    int holeX, holeZ;
+    if (m_ground != nullptr) {
+      m_ground->getHolePosition(holeX, holeZ);
+      if (gridX != holeX || gridZ != holeZ) {
+        positionValid = true;
+      }
+    } else {
+      positionValid = true;
+    }
+  }
+
+  m_position = newPosition;
   m_state = State::STANDING;
   m_isMoving = false;
   m_isFalling = false;
@@ -434,4 +489,9 @@ void Cube::resetGame() {
   m_angle = 0.0f;
   m_border = false;
   m_fallTime = 0.0f;
+
+  // Reseta o Ground para gerar um novo buraco
+  if (m_ground != nullptr) {
+    m_ground->reset();
+  }
 }

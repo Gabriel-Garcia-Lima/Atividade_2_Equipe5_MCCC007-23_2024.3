@@ -1,4 +1,5 @@
 #include "ground.hpp"
+#include <random>
 
 void Ground::create(GLuint program, GLint modelMatrixLoc, GLint colorLoc, float scale, int N) {
   // Define um quadrado unitário no plano xz
@@ -38,14 +39,12 @@ void Ground::create(GLuint program, GLint modelMatrixLoc, GLint colorLoc, float 
   m_scale = scale;
   m_grid.resize(2 * m_N + 1, std::vector<bool>(2 * m_N + 1, true));
 
-  // For example, set the hole at (x=0, z=3)
-  setHole(1, 2);
+  // Randomize hole position on creation
+  randomizeHole();
 
   // Carrega a localização das variáveis uniformes do shader
   m_modelMatrixLoc = modelMatrixLoc;
   m_colorLoc = colorLoc;
-  m_scale = scale;
-  m_N = N; // Para um plano 7x7, defina N = 3
 }
 
 void Ground::paint() {
@@ -73,7 +72,6 @@ void Ground::paint() {
 
   abcg::glBindVertexArray(0);
 }
-
 
 void Ground::destroy() {
   abcg::glDeleteBuffers(1, &m_VBO);
@@ -104,4 +102,29 @@ bool Ground::isTile(int x, int z) const {
 void Ground::getHolePosition(int& x, int& z) const {
   x = m_holeX;
   z = m_holeZ;
+}
+
+void Ground::randomizeHole() {
+  // Use a uniform distribution to randomly select hole position
+  std::uniform_int_distribution<> xDist(-m_N, m_N);
+  std::uniform_int_distribution<> zDist(-m_N, m_N);
+
+  int newHoleX, newHoleZ;
+  do {
+    newHoleX = xDist(m_gen);
+    newHoleZ = zDist(m_gen);
+  } while (newHoleX == 0 && newHoleZ == 0); // Avoid placing hole at the center
+
+  // Clear previous grid and set hole
+  m_grid = std::vector<std::vector<bool>>(2 * m_N + 1, std::vector<bool>(2 * m_N + 1, true));
+  setHole(newHoleX, newHoleZ);
+}
+
+bool Ground::isGameOver() const {
+  return !isTile(m_holeX, m_holeZ);
+}
+
+void Ground::reset() {
+  // Reset grid and randomize hole
+  randomizeHole();
 }

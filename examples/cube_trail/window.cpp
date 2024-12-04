@@ -40,7 +40,11 @@ void Window::onCreate() {
   m_cube.loadObj(assetsPath + "box.obj");
   m_cube.create(m_program, m_modelMatrixLoc, m_colorLoc, m_viewMatrix, m_scale,
                 m_N);
+
+  // Vincula a instância de Ground ao Cube
+  m_cube.setGround(&m_ground);
 }
+
 
 void Window::onUpdate() {
   m_cube.update(gsl::narrow_cast<float>(getDeltaTime()));

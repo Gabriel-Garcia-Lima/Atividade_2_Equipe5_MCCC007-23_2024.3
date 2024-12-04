@@ -3,6 +3,8 @@
 
 #include "abcgOpenGL.hpp"
 #include "vertex.hpp"
+#include "ground.hpp"
+#include <random>
 
 class Cube {
 public:
@@ -16,6 +18,8 @@ public:
   void moveUp();
   void moveDown();
   void resetGame();
+  void setGround(Ground* ground);
+  bool isOnHole() const;
 
 private:
   GLuint m_VAO{};
@@ -56,9 +60,20 @@ private:
   float m_fallDuration{1.0f};
   float m_fallSpeed{2.0f};
 
+  // Novo membro para geração aleatória de posição
+  std::mt19937 m_randomEngine{std::random_device{}()};
+  std::uniform_int_distribution<int> m_xDistribution{0, 3};
+  std::uniform_int_distribution<int> m_zDistribution{0, 3};
+
   void move(float deltaTime);
   void translate();
   void resetAnimation();
+  
+  // Novo método para gerar posição aleatória
+  glm::vec3 generateRandomPosition();
+
+  private:
+  Ground* m_ground{nullptr};
 };
 
 #endif

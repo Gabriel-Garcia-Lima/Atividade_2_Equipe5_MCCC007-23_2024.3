@@ -4,7 +4,7 @@
 #include "abcgOpenGL.hpp"
 #include "vertex.hpp"
 #include <vector>
-
+#include <random>
 
 class Ground {
 public:
@@ -16,6 +16,16 @@ public:
   void setHole(int x, int z);
   bool isTile(int x, int z) const;
   void getHolePosition(int& x, int& z) const;
+  
+  // New methods
+  void randomizeHole(); // Método para gerar buraco aleatório
+  bool isGameOver() const; // Verifica se o jogo terminou
+  void reset(); // Reinicia o estado do chão
+
+  int getHoleX() const { return m_holeX; }
+  int getHoleZ() const { return m_holeZ; }
+  int getN() const { return m_N; }
+
 
 private:
   std::vector<Vertex> m_vertices;
@@ -33,6 +43,12 @@ private:
   // Coordinates of the hole
   int m_holeX{-1};
   int m_holeZ{-1};
+
+  // Random number generator for hole placement
+  std::random_device m_rd;
+  std::mt19937 m_gen{m_rd()};
+
+  
 };
 
 #endif
