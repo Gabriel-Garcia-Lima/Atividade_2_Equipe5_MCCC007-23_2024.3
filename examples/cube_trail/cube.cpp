@@ -187,7 +187,7 @@ void Cube::move(float deltaTime) {
       return;
 
   if (m_isFalling) {
-    // Falling animation remains the same
+    // Animação de queda permanece a mesma
     m_fallTime += deltaTime;
     m_position.y -= m_fallSpeed * deltaTime;
     if (m_fallTime > m_fallDuration) {
@@ -199,6 +199,7 @@ void Cube::move(float deltaTime) {
   float max_angle = 90.0f;
 
   if (m_angle < max_angle) {
+    // Incrementa o ângulo com base na direção de rotação
     m_angle += deltaTime * m_angleVelocity;
     if (m_angle > max_angle)
       m_angle = max_angle;
@@ -213,19 +214,19 @@ void Cube::move(float deltaTime) {
         switch (m_orientation) {
           case Orientation::UP:
             rotationAxis = glm::vec3(1.0f, 0.0f, 0.0f);
-            pivotPoint = m_position + glm::vec3(0.0f, -offset, -offset);
+            pivotPoint = m_position + glm::vec3(0.0f, 0.0f, -offset); // Ajuste Y para 0.0f
             break;
           case Orientation::DOWN:
             rotationAxis = glm::vec3(1.0f, 0.0f, 0.0f);
-            pivotPoint = m_position + glm::vec3(0.0f, -offset, offset);
+            pivotPoint = m_position + glm::vec3(0.0f, 0.0f, offset); // Ajuste Y para 0.0f
             break;
           case Orientation::LEFT:
             rotationAxis = glm::vec3(0.0f, 0.0f, 1.0f);
-            pivotPoint = m_position + glm::vec3(-offset, -offset, 0.0f);
+            pivotPoint = m_position + glm::vec3(-offset, 0.0f, 0.0f); // Ajuste Y para 0.0f
             break;
           case Orientation::RIGHT:
             rotationAxis = glm::vec3(0.0f, 0.0f, 1.0f);
-            pivotPoint = m_position + glm::vec3(offset, -offset, 0.0f);
+            pivotPoint = m_position + glm::vec3(offset, 0.0f, 0.0f); // Ajuste Y para 0.0f
             break;
         }
         break;
@@ -234,11 +235,11 @@ void Cube::move(float deltaTime) {
         if (m_orientation == Orientation::UP || m_orientation == Orientation::DOWN) {
           rotationAxis = glm::vec3(1.0f, 0.0f, 0.0f);
           float pivotOffsetZ = (m_orientation == Orientation::UP ? -m_scale : m_scale);
-          pivotPoint = m_position + glm::vec3(0.0f, -offset, pivotOffsetZ);
+          pivotPoint = m_position + glm::vec3(0.0f, 0.0f, pivotOffsetZ);
         } else {
-          // Moving left/right while LAYING_Z
+          // Movendo para a esquerda/direita enquanto está LAYING_Z
           rotationAxis = glm::vec3(0.0f, 0.0f, 1.0f);
-          pivotPoint = m_position + glm::vec3((m_orientation == Orientation::LEFT ? -offset : offset), -offset, 0.0f);
+          pivotPoint = m_position + glm::vec3((m_orientation == Orientation::LEFT ? -offset : offset), 0.0f, 0.0f);
         }
         break;
 
@@ -246,18 +247,18 @@ void Cube::move(float deltaTime) {
         if (m_orientation == Orientation::LEFT || m_orientation == Orientation::RIGHT) {
           rotationAxis = glm::vec3(0.0f, 0.0f, 1.0f);
           float pivotOffsetX = (m_orientation == Orientation::LEFT ? -m_scale : m_scale);
-          pivotPoint = m_position + glm::vec3(pivotOffsetX, -offset, 0.0f);
+          pivotPoint = m_position + glm::vec3(pivotOffsetX, 0.0f, 0.0f); // Y = 0.0f
         } else {
-          // Moving up/down while LAYING_X
+          // Movendo para cima/baixo enquanto está LAYING_X
           rotationAxis = glm::vec3(1.0f, 0.0f, 0.0f);
-          pivotPoint = m_position + glm::vec3(0.0f, -offset, (m_orientation == Orientation::UP ? -offset : offset));
+          pivotPoint = m_position + glm::vec3(0.0f, 0.0f, (m_orientation == Orientation::UP ? -offset : offset)); // Y = 0.0f
         }
         break;
     }
 
-    // Apply rotation transformations
+    // Aplicar as transformações de rotação com a direção correta
     m_animationMatrix = glm::translate(glm::mat4(1.0f), pivotPoint);
-    m_animationMatrix = glm::rotate(m_animationMatrix, glm::radians(m_angle), rotationAxis);
+    m_animationMatrix = glm::rotate(m_animationMatrix, glm::radians(m_rotationDirection * m_angle), rotationAxis);
     m_animationMatrix = glm::translate(m_animationMatrix, -pivotPoint);
 
   } else {
@@ -324,6 +325,9 @@ void Cube::translate() {
       break;
   }
 
+    // Garantir que Y permaneça constante após translação
+  m_position.y = 0.0f; // Mantém o prisma na superfície da plataforma
+
   // Após atualizar a posição, verifique se o Cube está sobre o buraco **e está em pé**
   if (m_ground != nullptr) {
     // Converte as coordenadas do mundo para coordenadas do grid
@@ -339,6 +343,10 @@ void Cube::translate() {
       m_isFalling = true;
       m_fallTime = 0.0f;
     }
+    if (!m_ground->isTile(gridX, gridZ)) {
+        m_isFalling = true;
+        m_fallTime = 0.0f;
+    }
   }
 }
 
@@ -347,116 +355,36 @@ void Cube::moveUp() {
   if (m_isMoving || m_isFalling)
     return;
 
-  bool willFall = false;
-
-  switch (m_state) {
-  case State::STANDING:
-    willFall = (m_position.z - (m_scale * 1.0f) < -m_maxPos);
-    break;
-  case State::LAYING_Z:
-    willFall = (m_position.z - (m_scale * 1.0f) < -m_maxPos);
-    break;
-  case State::LAYING_X:
-    willFall = (m_position.z - (m_scale * 1.0f) < -m_maxPos);
-    break;
-  }
-
-  if (willFall) {
-    m_border = true;
-    m_isFalling = true;
-    m_fallTime = 0.0f;
-    return;
-  }
-
   m_isMoving = true;
   m_orientation = Orientation::UP;
+  m_rotationDirection = -1;
 }
 
 void Cube::moveDown() {
   if (m_isMoving || m_isFalling)
     return;
 
-  bool willFall = false;
-
-  switch (m_state) {
-  case State::STANDING:
-    willFall = (m_position.z + (m_scale * 1.0f) > m_maxPos);
-    break;
-  case State::LAYING_Z:
-    willFall = (m_position.z + (m_scale * 1.0f) > m_maxPos);
-    break;
-  case State::LAYING_X:
-    willFall = (m_position.z + (m_scale * 1.0f) > m_maxPos);
-    break;
-  }
-
-  if (willFall) {
-    m_border = true;
-    m_isFalling = true;
-    m_fallTime = 0.0f;
-    return;
-  }
-
   m_isMoving = true;
   m_orientation = Orientation::DOWN;
+  m_rotationDirection = 1;
 }
 
 void Cube::moveLeft() {
   if (m_isMoving || m_isFalling)
     return;
 
-  bool willFall = false;
-
-  switch (m_state) {
-  case State::STANDING:
-    willFall = (m_position.x - (m_scale * 1.0f) < -m_maxPos);
-    break;
-  case State::LAYING_X:
-    willFall = (m_position.x - (m_scale * 1.0f) < -m_maxPos);
-    break;
-  case State::LAYING_Z:
-    willFall = (m_position.x - (m_scale * 1.0f) < -m_maxPos);
-    break;
-  }
-
-  if (willFall) {
-    m_border = true;
-    m_isFalling = true;
-    m_fallTime = 0.0f;
-    return;
-  }
-
   m_isMoving = true;
   m_orientation = Orientation::LEFT;
+  m_rotationDirection = 1;
 }
 
 void Cube::moveRight() {
   if (m_isMoving || m_isFalling)
     return;
 
-  bool willFall = false;
-
-  switch (m_state) {
-  case State::STANDING:
-    willFall = (m_position.x + (m_scale * 1.0f) > m_maxPos);
-    break;
-  case State::LAYING_X:
-    willFall = (m_position.x + (m_scale * 1.0f) > m_maxPos);
-    break;
-  case State::LAYING_Z:
-    willFall = (m_position.x + (m_scale * 1.0f) > m_maxPos);
-    break;
-  }
-
-  if (willFall) {
-    m_border = true;
-    m_isFalling = true;
-    m_fallTime = 0.0f;
-    return;
-  }
-
   m_isMoving = true;
   m_orientation = Orientation::RIGHT;
+  m_rotationDirection = -1;
 }
 
 void Cube::resetGame() {

@@ -12,7 +12,5 @@ uniform mat4 projMatrix;
 out vec3 fragV;
 
 void main() {
-  vec3 P = (viewMatrix * modelMatrix * vec4(inPosition, 1.0)).xyz;
-  
-  gl_Position = projMatrix * vec4(P, 1.0);
+  gl_Position = projMatrix * viewMatrix * modelMatrix * vec4(inPosition, 1.0);
 }

@@ -72,7 +72,8 @@ private:
   // Novo método para gerar posição aleatória
   glm::vec3 generateRandomPosition();
 
-  private:
+  int m_rotationDirection{1}; 
+
   Ground* m_ground{nullptr};
 };
 
