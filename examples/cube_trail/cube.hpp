@@ -2,8 +2,8 @@
 #define CUBE_HPP_
 
 #include "abcgOpenGL.hpp"
-#include "vertex.hpp"
 #include "ground.hpp"
+#include "vertex.hpp"
 #include <random>
 
 class Cube {
@@ -11,14 +11,15 @@ public:
   void loadObj(std::string_view path);
   void paint();
   void update(float deltaTime);
-  void create(GLuint program, GLint modelMatrixLoc, GLint colorLoc, glm::mat4 viewMatrix, float scale, int N);
+  void create(GLuint program, GLint modelMatrixLoc, GLint colorLoc,
+              glm::mat4 viewMatrix, float scale, int N);
   void destroy() const;
   void moveLeft();
   void moveRight();
   void moveUp();
   void moveDown();
   void resetGame();
-  void setGround(Ground* ground);
+  void setGround(Ground *ground);
   bool isOnHole() const;
 
 private:
@@ -34,6 +35,7 @@ private:
   GLint m_modelMatrixLoc;
 
   GLint m_colorLoc;
+  GLuint m_wireframeEBO;
 
   std::vector<Vertex> m_vertices;
   std::vector<GLuint> m_indices;
@@ -68,13 +70,13 @@ private:
   void move(float deltaTime);
   void translate();
   void resetAnimation();
-  
+
   // Novo método para gerar posição aleatória
   glm::vec3 generateRandomPosition();
 
-  int m_rotationDirection{1}; 
+  int m_rotationDirection{1};
 
-  Ground* m_ground{nullptr};
+  Ground *m_ground{nullptr};
 };
 
 #endif

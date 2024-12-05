@@ -1,7 +1,11 @@
 #include "cube.hpp"
 #include "ground.hpp"
-#include <iostream>
 #include <cmath>
+#include <iostream>
+
+#include <GL/gl.h> // Standard OpenGL header
+// Or if using GLEW
+#include <GL/glew.h>
 
 #include <glm/gtx/fast_trigonometry.hpp>
 #include <unordered_map>
@@ -18,6 +22,7 @@ void Cube::createBuffers() {
   // Deleta buffers anteriores
   abcg::glDeleteBuffers(1, &m_EBO);
   abcg::glDeleteBuffers(1, &m_VBO);
+  abcg::glDeleteBuffers(1, &m_wireframeEBO);
 
   // VBO
   abcg::glGenBuffers(1, &m_VBO);
@@ -27,12 +32,32 @@ void Cube::createBuffers() {
                      m_vertices.data(), GL_STATIC_DRAW);
   abcg::glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-  // EBO
+  // EBO for filled rendering
   abcg::glGenBuffers(1, &m_EBO);
   abcg::glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_EBO);
   abcg::glBufferData(GL_ELEMENT_ARRAY_BUFFER,
                      sizeof(m_indices.at(0)) * m_indices.size(),
                      m_indices.data(), GL_STATIC_DRAW);
+  abcg::glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+  // EBO for wireframe rendering
+  abcg::glGenBuffers(1, &m_wireframeEBO);
+  abcg::glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_wireframeEBO);
+
+  // Create wireframe indices
+  std::vector<GLuint> wireframeIndices;
+  for (size_t i = 0; i < m_indices.size(); i += 3) {
+    wireframeIndices.push_back(m_indices[i]);
+    wireframeIndices.push_back(m_indices[i + 1]);
+    wireframeIndices.push_back(m_indices[i + 1]);
+    wireframeIndices.push_back(m_indices[i + 2]);
+    wireframeIndices.push_back(m_indices[i + 2]);
+    wireframeIndices.push_back(m_indices[i]);
+  }
+
+  abcg::glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+                     sizeof(wireframeIndices.at(0)) * wireframeIndices.size(),
+                     wireframeIndices.data(), GL_STATIC_DRAW);
   abcg::glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
@@ -109,24 +134,27 @@ void Cube::paint() {
   m_modelMatrix = glm::scale(m_modelMatrix, scaleVec);
 
   abcg::glUniformMatrix4fv(m_modelMatrixLoc, 1, GL_FALSE, &m_modelMatrix[0][0]);
-  abcg::glUniform4f(m_colorLoc, 0.36f, 0.26f, 0.56f, 0.8f); // Cor
 
   abcg::glBindVertexArray(m_VAO);
 
-  abcg::glDrawElements(GL_TRIANGLES, m_indices.size(), GL_UNSIGNED_INT, nullptr);
+  // Filled render
+  abcg::glUniform4f(m_colorLoc, 0.36f, 0.26f, 0.56f, 0.8f); // Cor
+  abcg::glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_EBO);
+  abcg::glDrawElements(GL_TRIANGLES, m_indices.size(), GL_UNSIGNED_INT,
+                       nullptr);
 
-  // Renderizar as bordas no modo wireframe
-  glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); // Ativar modo wireframe
-  abcg::glUniform4f(m_colorLoc, 0.0f, 0.0f, 0.0f, 1.0f); // Cor das arestas (preto)
-  abcg::glDrawElements(GL_TRIANGLES, m_indices.size(), GL_UNSIGNED_INT, nullptr);
-  glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); // Voltar ao modo preenchido
+  // Wireframe render
+  abcg::glUniform4f(m_colorLoc, 0.0f, 0.0f, 0.0f,
+                    1.0f); // Cor das arestas (preto)
+  abcg::glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_wireframeEBO);
+  abcg::glDrawElements(GL_LINES, m_indices.size() * 2, GL_UNSIGNED_INT,
+                       nullptr);
 
   abcg::glBindVertexArray(0);
 }
 
 void Cube::create(GLuint program, GLint modelMatrixLoc, GLint colorLoc,
-                  glm::mat4 viewMatrix, float scale,
-                  int N) {
+                  glm::mat4 viewMatrix, float scale, int N) {
   // Libera o VAO anterior
   abcg::glDeleteVertexArrays(1, &m_VAO);
 
@@ -160,13 +188,12 @@ void Cube::create(GLuint program, GLint modelMatrixLoc, GLint colorLoc,
 
 void Cube::update(float deltaTime) { move(deltaTime); }
 
-void Cube::setGround(Ground* ground) {
-    m_ground = ground;
-}
+void Cube::setGround(Ground *ground) { m_ground = ground; }
 
 void Cube::destroy() const {
   abcg::glDeleteBuffers(1, &m_EBO);
   abcg::glDeleteBuffers(1, &m_VBO);
+  abcg::glDeleteBuffers(1, &m_wireframeEBO);
   abcg::glDeleteVertexArrays(1, &m_VAO);
 }
 
@@ -184,7 +211,7 @@ glm::vec3 Cube::generateRandomPosition() {
 
 void Cube::move(float deltaTime) {
   if (!m_isMoving && !m_isFalling)
-      return;
+    return;
 
   if (m_isFalling) {
     // Animação de queda permanece a mesma
@@ -210,55 +237,72 @@ void Cube::move(float deltaTime) {
     float offset = m_scale / 2.0f;
 
     switch (m_state) {
-      case State::STANDING:
-        switch (m_orientation) {
-          case Orientation::UP:
-            rotationAxis = glm::vec3(1.0f, 0.0f, 0.0f);
-            pivotPoint = m_position + glm::vec3(0.0f, 0.0f, -offset); // Ajuste Y para 0.0f
-            break;
-          case Orientation::DOWN:
-            rotationAxis = glm::vec3(1.0f, 0.0f, 0.0f);
-            pivotPoint = m_position + glm::vec3(0.0f, 0.0f, offset); // Ajuste Y para 0.0f
-            break;
-          case Orientation::LEFT:
-            rotationAxis = glm::vec3(0.0f, 0.0f, 1.0f);
-            pivotPoint = m_position + glm::vec3(-offset, 0.0f, 0.0f); // Ajuste Y para 0.0f
-            break;
-          case Orientation::RIGHT:
-            rotationAxis = glm::vec3(0.0f, 0.0f, 1.0f);
-            pivotPoint = m_position + glm::vec3(offset, 0.0f, 0.0f); // Ajuste Y para 0.0f
-            break;
-        }
+    case State::STANDING:
+      switch (m_orientation) {
+      case Orientation::UP:
+        rotationAxis = glm::vec3(1.0f, 0.0f, 0.0f);
+        pivotPoint =
+            m_position + glm::vec3(0.0f, 0.0f, -offset); // Ajuste Y para 0.0f
         break;
+      case Orientation::DOWN:
+        rotationAxis = glm::vec3(1.0f, 0.0f, 0.0f);
+        pivotPoint =
+            m_position + glm::vec3(0.0f, 0.0f, offset); // Ajuste Y para 0.0f
+        break;
+      case Orientation::LEFT:
+        rotationAxis = glm::vec3(0.0f, 0.0f, 1.0f);
+        pivotPoint =
+            m_position + glm::vec3(-offset, 0.0f, 0.0f); // Ajuste Y para 0.0f
+        break;
+      case Orientation::RIGHT:
+        rotationAxis = glm::vec3(0.0f, 0.0f, 1.0f);
+        pivotPoint =
+            m_position + glm::vec3(offset, 0.0f, 0.0f); // Ajuste Y para 0.0f
+        break;
+      }
+      break;
 
-      case State::LAYING_Z:
-        if (m_orientation == Orientation::UP || m_orientation == Orientation::DOWN) {
-          rotationAxis = glm::vec3(1.0f, 0.0f, 0.0f);
-          float pivotOffsetZ = (m_orientation == Orientation::UP ? -m_scale : m_scale);
-          pivotPoint = m_position + glm::vec3(0.0f, 0.0f, pivotOffsetZ);
-        } else {
-          // Movendo para a esquerda/direita enquanto está LAYING_Z
-          rotationAxis = glm::vec3(0.0f, 0.0f, 1.0f);
-          pivotPoint = m_position + glm::vec3((m_orientation == Orientation::LEFT ? -offset : offset), 0.0f, 0.0f);
-        }
-        break;
+    case State::LAYING_Z:
+      if (m_orientation == Orientation::UP ||
+          m_orientation == Orientation::DOWN) {
+        rotationAxis = glm::vec3(1.0f, 0.0f, 0.0f);
+        float pivotOffsetZ =
+            (m_orientation == Orientation::UP ? -m_scale : m_scale);
+        pivotPoint = m_position + glm::vec3(0.0f, 0.0f, pivotOffsetZ);
+      } else {
+        // Movendo para a esquerda/direita enquanto está LAYING_Z
+        rotationAxis = glm::vec3(0.0f, 0.0f, 1.0f);
+        pivotPoint =
+            m_position +
+            glm::vec3((m_orientation == Orientation::LEFT ? -offset : offset),
+                      0.0f, 0.0f);
+      }
+      break;
 
-      case State::LAYING_X:
-        if (m_orientation == Orientation::LEFT || m_orientation == Orientation::RIGHT) {
-          rotationAxis = glm::vec3(0.0f, 0.0f, 1.0f);
-          float pivotOffsetX = (m_orientation == Orientation::LEFT ? -m_scale : m_scale);
-          pivotPoint = m_position + glm::vec3(pivotOffsetX, 0.0f, 0.0f); // Y = 0.0f
-        } else {
-          // Movendo para cima/baixo enquanto está LAYING_X
-          rotationAxis = glm::vec3(1.0f, 0.0f, 0.0f);
-          pivotPoint = m_position + glm::vec3(0.0f, 0.0f, (m_orientation == Orientation::UP ? -offset : offset)); // Y = 0.0f
-        }
-        break;
+    case State::LAYING_X:
+      if (m_orientation == Orientation::LEFT ||
+          m_orientation == Orientation::RIGHT) {
+        rotationAxis = glm::vec3(0.0f, 0.0f, 1.0f);
+        float pivotOffsetX =
+            (m_orientation == Orientation::LEFT ? -m_scale : m_scale);
+        pivotPoint =
+            m_position + glm::vec3(pivotOffsetX, 0.0f, 0.0f); // Y = 0.0f
+      } else {
+        // Movendo para cima/baixo enquanto está LAYING_X
+        rotationAxis = glm::vec3(1.0f, 0.0f, 0.0f);
+        pivotPoint = m_position + glm::vec3(0.0f, 0.0f,
+                                            (m_orientation == Orientation::UP
+                                                 ? -offset
+                                                 : offset)); // Y = 0.0f
+      }
+      break;
     }
 
     // Aplicar as transformações de rotação com a direção correta
     m_animationMatrix = glm::translate(glm::mat4(1.0f), pivotPoint);
-    m_animationMatrix = glm::rotate(m_animationMatrix, glm::radians(m_rotationDirection * m_angle), rotationAxis);
+    m_animationMatrix =
+        glm::rotate(m_animationMatrix,
+                    glm::radians(m_rotationDirection * m_angle), rotationAxis);
     m_animationMatrix = glm::translate(m_animationMatrix, -pivotPoint);
 
   } else {
@@ -278,57 +322,69 @@ void Cube::translate() {
   float moveDistance = m_scale;
 
   switch (m_state) {
-    case State::STANDING:
-      if (m_orientation == Orientation::UP) {
-        m_position.z -= moveDistance;
-        m_position.z -= moveDistance / 2.0f; // Shift para estado LAYING
-        m_state = State::LAYING_Z;
-      } else if (m_orientation == Orientation::DOWN) {
-        m_position.z += moveDistance;
-        m_position.z += moveDistance / 2.0f;
-        m_state = State::LAYING_Z;
-      } else if (m_orientation == Orientation::LEFT) {
-        m_position.x -= moveDistance;
-        m_position.x -= moveDistance / 2.0f;
-        m_state = State::LAYING_X;
-      } else if (m_orientation == Orientation::RIGHT) {
-        m_position.x += moveDistance;
-        m_position.x += moveDistance / 2.0f;
-        m_state = State::LAYING_X;
-      }
-      break;
+  case State::STANDING:
+    if (m_orientation == Orientation::UP) {
+      m_position.z -= moveDistance;
+      m_position.z -= moveDistance / 2.0f; // Shift para estado LAYING
+      m_state = State::LAYING_Z;
+    } else if (m_orientation == Orientation::DOWN) {
+      m_position.z += moveDistance;
+      m_position.z += moveDistance / 2.0f;
+      m_state = State::LAYING_Z;
+    } else if (m_orientation == Orientation::LEFT) {
+      m_position.x -= moveDistance;
+      m_position.x -= moveDistance / 2.0f;
+      m_state = State::LAYING_X;
+    } else if (m_orientation == Orientation::RIGHT) {
+      m_position.x += moveDistance;
+      m_position.x += moveDistance / 2.0f;
+      m_state = State::LAYING_X;
+    }
+    break;
 
-    case State::LAYING_Z:
-      if (m_orientation == Orientation::UP || m_orientation == Orientation::DOWN) {
-        // Move duas casas
-        m_position.z += (m_orientation == Orientation::UP ? -2.0f * moveDistance : 2.0f * moveDistance);
-        // Ajusta a posição para o centro
-        m_position.z += (m_orientation == Orientation::UP ? moveDistance : -moveDistance) / 2.0f;
-        m_state = State::STANDING;
-      } else {
-        // Move uma casa na direção X
-        m_position.x += (m_orientation == Orientation::LEFT ? -moveDistance : moveDistance);
-      }
-      break;
+  case State::LAYING_Z:
+    if (m_orientation == Orientation::UP ||
+        m_orientation == Orientation::DOWN) {
+      // Move duas casas
+      m_position.z += (m_orientation == Orientation::UP ? -2.0f * moveDistance
+                                                        : 2.0f * moveDistance);
+      // Ajusta a posição para o centro
+      m_position.z +=
+          (m_orientation == Orientation::UP ? moveDistance : -moveDistance) /
+          2.0f;
+      m_state = State::STANDING;
+    } else {
+      // Move uma casa na direção X
+      m_position.x +=
+          (m_orientation == Orientation::LEFT ? -moveDistance : moveDistance);
+    }
+    break;
 
-    case State::LAYING_X:
-      if (m_orientation == Orientation::LEFT || m_orientation == Orientation::RIGHT) {
-        // Move duas casas
-        m_position.x += (m_orientation == Orientation::LEFT ? -2.0f * moveDistance : 2.0f * moveDistance);
-        // Ajusta a posição para o centro
-        m_position.x += (m_orientation == Orientation::LEFT ? moveDistance : -moveDistance) / 2.0f;
-        m_state = State::STANDING;
-      } else {
-        // Move uma casa na direção Z
-        m_position.z += (m_orientation == Orientation::UP ? -moveDistance : moveDistance);
-      }
-      break;
+  case State::LAYING_X:
+    if (m_orientation == Orientation::LEFT ||
+        m_orientation == Orientation::RIGHT) {
+      // Move duas casas
+      m_position.x +=
+          (m_orientation == Orientation::LEFT ? -2.0f * moveDistance
+                                              : 2.0f * moveDistance);
+      // Ajusta a posição para o centro
+      m_position.x +=
+          (m_orientation == Orientation::LEFT ? moveDistance : -moveDistance) /
+          2.0f;
+      m_state = State::STANDING;
+    } else {
+      // Move uma casa na direção Z
+      m_position.z +=
+          (m_orientation == Orientation::UP ? -moveDistance : moveDistance);
+    }
+    break;
   }
 
-    // Garantir que Y permaneça constante após translação
+  // Garantir que Y permaneça constante após translação
   m_position.y = 0.0f; // Mantém o prisma na superfície da plataforma
 
-  // Após atualizar a posição, verifique se o Cube está sobre o buraco **e está em pé**
+  // Após atualizar a posição, verifique se o Cube está sobre o buraco **e está
+  // em pé**
   if (m_ground != nullptr) {
     // Converte as coordenadas do mundo para coordenadas do grid
     int gridX = static_cast<int>(round(m_position.x / m_scale));
@@ -344,12 +400,11 @@ void Cube::translate() {
       m_fallTime = 0.0f;
     }
     if (!m_ground->isTile(gridX, gridZ)) {
-        m_isFalling = true;
-        m_fallTime = 0.0f;
+      m_isFalling = true;
+      m_fallTime = 0.0f;
     }
   }
 }
-
 
 void Cube::moveUp() {
   if (m_isMoving || m_isFalling)
