@@ -26,6 +26,7 @@ public:
   int getHoleZ() const { return m_holeZ; }
   int getN() const { return m_N; }
 
+  void setTexture(GLuint texture) { m_texture = texture; }
 
 private:
   std::vector<Vertex> m_vertices;
@@ -48,7 +49,7 @@ private:
   std::random_device m_rd;
   std::mt19937 m_gen{m_rd()};
 
-  
+  GLuint m_texture{0};  
 };
 
 #endif

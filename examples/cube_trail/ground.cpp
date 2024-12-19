@@ -3,12 +3,12 @@
 
 void Ground::create(GLuint program, GLint modelMatrixLoc, GLint colorLoc, float scale, int N) {
   // Define um quadrado unitário no plano xz
-  m_vertices = {{
-    {.position = {+0.5f, 0.0f, -0.5f}}, // Vértice 1
-    {.position = {-0.5f, 0.0f, -0.5f}}, // Vértice 2
-    {.position = {+0.5f, 0.0f, +0.5f}}, // Vértice 3
-    {.position = {-0.5f, 0.0f, +0.5f}}  // Vértice 4
-  }};
+  m_vertices = {
+    {.position = {+0.5f, 0.0f, -0.5f}, .normal={0.0f,1.0f,0.0f}, .texCoord={1.0f,0.0f}},
+    {.position = {-0.5f, 0.0f, -0.5f}, .normal={0.0f,1.0f,0.0f}, .texCoord={0.0f,0.0f}},
+    {.position = {+0.5f, 0.0f, +0.5f}, .normal={0.0f,1.0f,0.0f}, .texCoord={1.0f,1.0f}},
+    {.position = {-0.5f, 0.0f, +0.5f}, .normal={0.0f,1.0f,0.0f}, .texCoord={0.0f,1.0f}}
+  };
 
   // VBO
   abcg::glGenBuffers(1, &m_VBO);
@@ -30,6 +30,17 @@ void Ground::create(GLuint program, GLint modelMatrixLoc, GLint colorLoc, float 
     abcg::glVertexAttribPointer(positionAttribute, 3, GL_FLOAT, GL_FALSE,
                                 sizeof(Vertex), nullptr);
   }
+  auto const normalAttribute{abcg::glGetAttribLocation(program, "inNormal")};
+  if (normalAttribute >= 0) {
+    abcg::glEnableVertexAttribArray(normalAttribute);
+    abcg::glVertexAttribPointer(normalAttribute, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
+  }
+
+  auto const texCoordAttribute{abcg::glGetAttribLocation(program, "inTexCoord")};
+  if (texCoordAttribute >= 0) {
+    abcg::glEnableVertexAttribArray(texCoordAttribute);
+    abcg::glVertexAttribPointer(texCoordAttribute, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, texCoord));
+  }
 
   abcg::glBindBuffer(GL_ARRAY_BUFFER, 0);
   abcg::glBindVertexArray(0);
@@ -49,6 +60,7 @@ void Ground::create(GLuint program, GLint modelMatrixLoc, GLint colorLoc, float 
 
 void Ground::paint() {
   abcg::glBindVertexArray(m_VAO);
+  abcg::glBindTexture(GL_TEXTURE_2D, m_texture);
 
   for (auto const z : iter::range(-m_N, m_N + 1)) {
     for (auto const x : iter::range(-m_N, m_N + 1)) {

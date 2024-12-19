@@ -30,6 +30,8 @@ private:
   Ground m_ground;
   Cube m_cube;
   GLuint m_program{};
+
+  GLuint loadTexture(std::string_view path);
 };
 
 #endif
