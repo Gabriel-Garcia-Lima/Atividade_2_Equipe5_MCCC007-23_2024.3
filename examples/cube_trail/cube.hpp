@@ -20,7 +20,8 @@ public:
   void resetGame();
   void setGround(Ground* ground);
   bool isOnHole() const;
-  void setTexture(GLuint texture) { m_texture = texture; }
+  void setTexture(GLuint texture) { m_texture = texture; };
+
 
 private:
   GLuint m_VAO{};

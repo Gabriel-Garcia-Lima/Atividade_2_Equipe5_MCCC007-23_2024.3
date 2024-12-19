@@ -7,38 +7,42 @@
 #include <unordered_map>
 
 // Especialização explícita de std::hash para Vertex
+
 template <> struct std::hash<Vertex> {
-  size_t operator()(Vertex const &vertex) const noexcept {
-    auto const h1{std::hash<glm::vec3>()(vertex.position)};
-    return h1;
+  size_t operator()(const Vertex& vertex) const noexcept {
+    auto h1 = std::hash<glm::vec3>()(vertex.position);
+    auto h2 = std::hash<glm::vec3>()(vertex.normal);
+    auto h3 = std::hash<glm::vec2>()(vertex.texCoord);
+    return h1 ^ (h2 << 1) ^ (h3 << 2);
   }
 };
 
 void Cube::createBuffers() {
-  abcg::glDeleteBuffers(1, &m_VBO);
+  // Deleta buffers anteriores
   abcg::glDeleteBuffers(1, &m_EBO);
+  abcg::glDeleteBuffers(1, &m_VBO);
 
   // VBO
   abcg::glGenBuffers(1, &m_VBO);
   abcg::glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
-  abcg::glBufferData(GL_ARRAY_BUFFER, m_vertices.size() * sizeof(Vertex),
+  abcg::glBufferData(GL_ARRAY_BUFFER,
+                     sizeof(m_vertices.at(0)) * m_vertices.size(),
                      m_vertices.data(), GL_STATIC_DRAW);
   abcg::glBindBuffer(GL_ARRAY_BUFFER, 0);
 
   // EBO
   abcg::glGenBuffers(1, &m_EBO);
   abcg::glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_EBO);
-  abcg::glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_indices.size() * sizeof(GLuint),
+  abcg::glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+                     sizeof(m_indices.at(0)) * m_indices.size(),
                      m_indices.data(), GL_STATIC_DRAW);
   abcg::glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
 void Cube::loadObj(std::string_view path) {
-  tinyobj::ObjReaderConfig readerConfig;
-  readerConfig.triangulate = true; // Garante que tudo está triangulado
   tinyobj::ObjReader reader;
 
-  if (!reader.ParseFromFile(path.data(), readerConfig)) {
+  if (!reader.ParseFromFile(path.data())) {
     if (!reader.Error().empty()) {
       throw abcg::RuntimeError(
           fmt::format("Failed to load model {} ({})", path, reader.Error()));
@@ -56,44 +60,46 @@ void Cube::loadObj(std::string_view path) {
   m_vertices.clear();
   m_indices.clear();
 
+  // Um mapa key:value com key=Vertex e value=index
   std::unordered_map<Vertex, GLuint> hash{};
 
-  for (auto const &shape : shapes) {
-    for (auto const &index : shape.mesh.indices) {
-      Vertex vertex{};
+  // Loop sobre shapes
+    for (auto const &shape : shapes) {
+    for (auto const offset : iter::range(shape.mesh.indices.size())) {
+      auto const index{shape.mesh.indices.at(offset)};
 
       // Posição
-      vertex.position = {
-        attrib.vertices[3 * size_t(index.vertex_index) + 0],
-        attrib.vertices[3 * size_t(index.vertex_index) + 1],
-        attrib.vertices[3 * size_t(index.vertex_index) + 2]
-      };
+      auto const startIndex{3 * index.vertex_index};
+      glm::vec3 position{attrib.vertices.at(startIndex + 0),
+                        attrib.vertices.at(startIndex + 1),
+                        attrib.vertices.at(startIndex + 2)};
 
       // Normal
+      glm::vec3 normal{};
       if (index.normal_index >= 0) {
-        vertex.normal = {
-          attrib.normals[3 * size_t(index.normal_index) + 0],
-          attrib.normals[3 * size_t(index.normal_index) + 1],
-          attrib.normals[3 * size_t(index.normal_index) + 2]
-        };
-      } else {
-        // Caso não haja normais no OBJ, defina todas em zero; depois podemos gerar automaticamente, se desejado.
-        vertex.normal = glm::vec3(0.0f);
+        auto const normalStartIndex{3 * index.normal_index};
+        normal = {attrib.normals.at(normalStartIndex + 0),
+                 attrib.normals.at(normalStartIndex + 1),
+                 attrib.normals.at(normalStartIndex + 2)};
       }
 
-      // Coordenadas de textura
+      // Coordenada de textura
+      glm::vec2 texCoord{};
       if (index.texcoord_index >= 0) {
-        vertex.texCoord = {
-          attrib.texcoords[2 * size_t(index.texcoord_index) + 0],
-          attrib.texcoords[2 * size_t(index.texcoord_index) + 1]
-        };
-      } else {
-        // Caso não haja UVs, defina um valor padrão ou gere UVs simples
-        vertex.texCoord = glm::vec2(0.0f);
+        auto const texStartIndex{2 * index.texcoord_index};
+        texCoord = {attrib.texcoords.at(texStartIndex + 0),
+                   attrib.texcoords.at(texStartIndex + 1)};
       }
 
+      Vertex const vertex{.position = position, 
+                         .normal = normal,
+                         .texCoord = texCoord};
+
+      // Se hash não contém este vértice
       if (!hash.contains(vertex)) {
-        hash[vertex] = static_cast<GLuint>(m_vertices.size());
+        // Adiciona este índice (tamanho de m_vertices)
+        hash[vertex] = m_vertices.size();
+        // Adiciona este vértice
         m_vertices.push_back(vertex);
       }
 
@@ -101,18 +107,17 @@ void Cube::loadObj(std::string_view path) {
     }
   }
 
-  // Se necessário, gerar normais aqui caso todas sejam zero.
-  // (Opcional, caso seu modelo já tenha normais.)
-
   createBuffers();
 }
 
 void Cube::paint() {
+  // Configura as variáveis uniformes para o cubo
   m_positionMatrix = glm::translate(glm::mat4{1.0f}, m_position);
   m_modelMatrix = m_positionMatrix * m_animationMatrix;
 
-  // Ajusta escala baseado no estado do cubo (ficando deitado ou em pé)
+  // Ajusta a escala do prisma com base no estado
   glm::vec3 scaleVec{m_scale, m_scale * 2.0f, m_scale};
+
   if (m_state == State::LAYING_Z) {
     scaleVec.z *= 2.0f;
     scaleVec.y = m_scale;
@@ -124,60 +129,62 @@ void Cube::paint() {
   m_modelMatrix = glm::scale(m_modelMatrix, scaleVec);
 
   abcg::glUniformMatrix4fv(m_modelMatrixLoc, 1, GL_FALSE, &m_modelMatrix[0][0]);
-  
-  // Caso esteja usando apenas textura, não é necessário definir cor aqui,
-  // pois o fragment shader usará a textura. 
-  // Você pode usar isso como fallback se desejar:
-  // abcg::glUniform4f(m_colorLoc, 1.0f, 1.0f, 1.0f, 1.0f);
+  abcg::glUniform4f(m_colorLoc, 0.36f, 0.26f, 0.56f, 0.8f); // Cor
 
   abcg::glBindVertexArray(m_VAO);
+  abcg::glBindTexture(GL_TEXTURE_2D, m_texture);  
+  abcg::glDrawElements(GL_TRIANGLES, m_indices.size(), GL_UNSIGNED_INT, nullptr);
 
-  // Vincula a textura do cubo
-  abcg::glActiveTexture(GL_TEXTURE0);
-  abcg::glBindTexture(GL_TEXTURE_2D, m_texture);
-
-  abcg::glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(m_indices.size()),
-                       GL_UNSIGNED_INT, nullptr);
+  // Renderizar as bordas no modo wireframe
+  glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); // Ativar modo wireframe
+  abcg::glUniform4f(m_colorLoc, 0.0f, 0.0f, 0.0f, 1.0f); // Cor das arestas (preto)
+  abcg::glDrawElements(GL_TRIANGLES, m_indices.size(), GL_UNSIGNED_INT, nullptr);
+  glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); // Voltar ao modo preenchido
 
   abcg::glBindVertexArray(0);
 }
 
 void Cube::create(GLuint program, GLint modelMatrixLoc, GLint colorLoc,
-                  glm::mat4 viewMatrix, float scale, int N) {
-  // Exclui o VAO anterior, se existir
+                  glm::mat4 viewMatrix, float scale,
+                  int N) {
+  // Libera o VAO anterior
   abcg::glDeleteVertexArrays(1, &m_VAO);
 
   // Cria o VAO
   abcg::glGenVertexArrays(1, &m_VAO);
   abcg::glBindVertexArray(m_VAO);
 
+  // Vincula EBO e VBO
   abcg::glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_EBO);
   abcg::glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
 
-  auto const positionAttribute = abcg::glGetAttribLocation(program, "inPosition");
+  // Vincula os atributos de vértice
+  auto const positionAttribute{
+  abcg::glGetAttribLocation(program, "inPosition")};
   if (positionAttribute >= 0) {
     abcg::glEnableVertexAttribArray(positionAttribute);
-    abcg::glVertexAttribPointer(positionAttribute, 3, GL_FLOAT, GL_FALSE, 
-                                sizeof(Vertex),
-                                reinterpret_cast<void*>(offsetof(Vertex, position)));
+    abcg::glVertexAttribPointer(positionAttribute, 3, GL_FLOAT, GL_FALSE,
+                               sizeof(Vertex), nullptr);
   }
 
-  auto const normalAttribute = abcg::glGetAttribLocation(program, "inNormal");
+  // Normal
+  auto const normalAttribute{abcg::glGetAttribLocation(program, "inNormal")};
   if (normalAttribute >= 0) {
     abcg::glEnableVertexAttribArray(normalAttribute);
     abcg::glVertexAttribPointer(normalAttribute, 3, GL_FLOAT, GL_FALSE,
-                                sizeof(Vertex),
-                                reinterpret_cast<void*>(offsetof(Vertex, normal)));
+                               sizeof(Vertex), 
+                               reinterpret_cast<void*>(offsetof(Vertex, normal)));
   }
 
-  auto const texCoordAttribute = abcg::glGetAttribLocation(program, "inTexCoord");
+  // Textura
+  auto const texCoordAttribute{abcg::glGetAttribLocation(program, "inTexCoord")};
   if (texCoordAttribute >= 0) {
     abcg::glEnableVertexAttribArray(texCoordAttribute);
     abcg::glVertexAttribPointer(texCoordAttribute, 2, GL_FLOAT, GL_FALSE,
-                                sizeof(Vertex),
-                                reinterpret_cast<void*>(offsetof(Vertex, texCoord)));
+                               sizeof(Vertex), 
+                               reinterpret_cast<void*>(offsetof(Vertex, texCoord)));
   }
-
+  // Fim da vinculação
   abcg::glBindBuffer(GL_ARRAY_BUFFER, 0);
   abcg::glBindVertexArray(0);
 

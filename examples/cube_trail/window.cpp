@@ -62,7 +62,7 @@ void Window::onCreate() {
   m_colorLoc       = abcg::glGetUniformLocation(m_program, "color");
 
   // Carrega as texturas para o chão e para o cubo
-  auto groundTexture = loadTexture(assetsPath + "myTexture.png");
+  auto groundTexture = loadTexture(assetsPath + "textue_01.png");
   auto cubeTexture   = loadTexture(assetsPath + "cubeTexture.jpg");
 
   // Cria o chão e o cubo
