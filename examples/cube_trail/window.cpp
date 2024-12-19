@@ -103,10 +103,10 @@ void Window::onPaint() {
   glm::vec3 lightDir = glm::normalize(glm::vec3(1.0f, 1.0f, 1.0f));
   abcg::glUniform3fv(lightDirLoc, 1, &lightDir.x);
 
-  glm::vec3 lightColor = glm::vec3(1.0f, 1.0f, 1.0f);
+  glm::vec3 lightColor = glm::vec3(1.0f, 1.0f, 1.0f); // Cor da Luz ambiente
   abcg::glUniform3fv(lightColorLoc, 1, &lightColor.x);
 
-  glm::vec3 ambientColor = glm::vec3(0.2f, 0.2f, 0.2f);
+  glm::vec3 ambientColor = glm::vec3(0.6f, 0.6f, 0.6f); // Iluminação ambiente
   abcg::glUniform3fv(ambientColorLoc, 1, &ambientColor.x);
 
   // Uniform da textura (sampler2D) é geralmente a unidade 0
